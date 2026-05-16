@@ -87,8 +87,8 @@
   // Week selector
   // ============================================================
   async function loadWeeks() {
-    // 從 st_alerts 撈最近 12 週有資料的 week_end
-    const url = `${REST}/st_alerts?select=week_end&order=week_end.desc&limit=500`;
+    // 從 st_holdings 撈最近 12 週有資料的 week_end（累積期間沒 alerts 仍能切換）
+    const url = `${REST}/st_holdings?select=week_end&order=week_end.desc&limit=5000`;
     const rows = await fetchJSON(url);
     const uniq = [...new Set(rows.map((r) => r.week_end))].slice(0, 12);
     S.weeks = uniq;
@@ -134,6 +134,7 @@
     if (!S.week) {
       loading.classList.add('hidden');
       empty.classList.remove('hidden');
+      $('snapshot-section').classList.add('hidden');
       return;
     }
 
@@ -149,16 +150,78 @@
     }
 
     loading.classList.add('hidden');
-    if (rows.length === 0) {
-      empty.classList.remove('hidden');
-      return;
-    }
 
     const reds = rows.filter((r) => r.level === 'red');
     const yels = rows.filter((r) => r.level === 'yellow');
-
     renderList('red-list', reds, redSec);
     renderList('yellow-list', yels, yelSec);
+
+    // 永遠在警示下方顯示本週大戶集中度 TOP 30
+    await loadSnapshot();
+  }
+
+  async function loadSnapshot() {
+    const sec = $('snapshot-section');
+    const list = $('snapshot-list');
+    const meta = $('snapshot-progress');
+    list.innerHTML = '';
+    sec.classList.add('hidden');
+
+    if (!S.week) return;
+
+    // 1. 抓 < 15 元股票
+    const prices = await fetchJSON(
+      `${REST}/st_prices?week_end=eq.${S.week}&close=lt.15&select=stock_id,close&order=close.asc&limit=600`,
+    );
+    if (prices.length === 0) return;
+    const priceMap = new Map(prices.map((p) => [p.stock_id, Number(p.close)]));
+    const sids = prices.map((p) => p.stock_id);
+
+    // 2. 抓這些股票的 holdings，按 large_ratio 排序取 TOP 30
+    const holdings = await fetchJSON(
+      `${REST}/st_holdings?week_end=eq.${S.week}&stock_id=in.(${sids.join(',')})&select=stock_id,large_ratio,small_ratio,total_holders&order=large_ratio.desc.nullslast&limit=30`,
+    );
+    if (holdings.length === 0) return;
+
+    // 3. 抓 stock names
+    const topSids = holdings.map((h) => h.stock_id);
+    const stocks = await fetchJSON(
+      `${REST}/st_stocks?stock_id=in.(${topSids.join(',')})&select=stock_id,name,industry`,
+    );
+    const stockMap = new Map(stocks.map((s) => [s.stock_id, s]));
+    for (const s of stocks) S.stocksById.set(s.stock_id, s);
+
+    // 4. 累積週數提示
+    const weekCount = S.weeks.length;
+    if (weekCount < 4) {
+      meta.textContent = `資料累積中 ${weekCount} / 4 週 — 再 ${4 - weekCount} 週開始出現紅燈/黃燈警示`;
+      meta.classList.remove('hidden');
+    } else {
+      meta.classList.add('hidden');
+    }
+
+    sec.classList.remove('hidden');
+    for (const h of holdings) {
+      const meta2 = stockMap.get(h.stock_id) || {};
+      const close = priceMap.get(h.stock_id);
+      const li = document.createElement('li');
+      li.className = 'alert-item snapshot';
+      li.innerHTML = `
+        <div class="alert-head">
+          <span class="stock-code">${h.stock_id}</span>
+          <span class="stock-name">${escapeHtml(meta2.name || '')}</span>
+          <span class="stock-close">${close.toFixed(2)}</span>
+        </div>
+        <div class="alert-body">
+          <span class="kv"><b>大戶比</b> ${Number(h.large_ratio).toFixed(2)}%</span>
+          <span class="kv"><b>散戶比</b> ${Number(h.small_ratio).toFixed(2)}%</span>
+          <span class="kv"><b>人數</b> ${(h.total_holders || 0).toLocaleString()}</span>
+        </div>
+        ${meta2.industry ? `<div class="alert-foot">${escapeHtml(meta2.industry)}</div>` : ''}
+      `;
+      li.addEventListener('click', () => openDetail(h.stock_id, meta2.name));
+      list.appendChild(li);
+    }
   }
 
   function renderList(ulId, items, sectionEl) {
@@ -221,7 +284,7 @@
       </div>
       <div class="detail-meta">
         <div><b>本週股東總人數：</b> ${holdings.at(-1)?.total_holders?.toLocaleString() || '—'}</div>
-        <div class="hint">資料來源：集保戶股權分散表（FinMind）</div>
+        <div class="hint">資料來源：集保戶股權分散表（TDCC 開放資料）</div>
       </div>
     `;
 
@@ -295,15 +358,28 @@
       { stock_id: '6116', week_end: '2026-05-15', level: 'yellow', close:  6.18, large_ratio_trend: [44.2, 44.8, 44.6, 45.5], small_ratio_trend: [14.1, 13.8, 13.9, 13.3], notes: '' },
       { stock_id: '2342', week_end: '2026-05-15', level: 'yellow', close:  9.55, large_ratio_trend: [33.5, 34.1, 34.8, 35.0], small_ratio_trend: [19.8, 19.5, 19.6, 19.0], notes: '' },
     ];
-    if (url.includes('st_alerts') && url.includes('select=week_end')) {
+    // 1. loadWeeks (st_holdings 只取 week_end)
+    if (url.includes('st_holdings') && url.includes('select=week_end')) {
       return Promise.resolve(W.slice().reverse().map((w) => ({ week_end: w })));
     }
+    // 2. alerts list
     if (url.includes('st_alerts') && url.includes('week_end=eq.')) {
       return Promise.resolve(ALERTS);
     }
-    if (url.includes('st_stocks') && url.includes('stock_id=in.')) {
-      return Promise.resolve(STOCKS);
+    // 3. snapshot: st_prices low-price filter
+    if (url.includes('st_prices') && url.includes('close=lt.')) {
+      return Promise.resolve(ALERTS.map((a) => ({ stock_id: a.stock_id, close: a.close })));
     }
+    // 4. snapshot: st_holdings week+stock_id IN list
+    if (url.includes('st_holdings') && url.includes('stock_id=in.')) {
+      return Promise.resolve(ALERTS.map((a) => ({
+        stock_id: a.stock_id,
+        large_ratio: a.large_ratio_trend.at(-1),
+        small_ratio: a.small_ratio_trend.at(-1),
+        total_holders: 12000 + Math.floor(Math.random() * 8000),
+      })));
+    }
+    // 5. detail modal: st_holdings 單檔歷史
     if (url.includes('st_holdings')) {
       const sid = (url.match(/stock_id=eq\.(\d+)/) || [])[1] || '2546';
       const base = ALERTS.find((a) => a.stock_id === sid) || ALERTS[0];
@@ -314,6 +390,7 @@
         total_holders: 12345 + i * 30,
       })));
     }
+    // 6. detail modal: st_prices 單檔歷史
     if (url.includes('st_prices')) {
       const sid = (url.match(/stock_id=eq\.(\d+)/) || [])[1] || '2546';
       const base = ALERTS.find((a) => a.stock_id === sid) || ALERTS[0];
@@ -321,6 +398,10 @@
         week_end: w,
         close: (base.close * (0.95 + i * 0.02)).toFixed(2),
       })));
+    }
+    // 7. st_stocks IN list
+    if (url.includes('st_stocks') && url.includes('stock_id=in.')) {
+      return Promise.resolve(STOCKS);
     }
     return Promise.resolve([]);
   }

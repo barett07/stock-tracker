@@ -219,10 +219,13 @@ def main() -> int:
     for h in holdings:
         h["week_end"] = week_end
 
-    # 兩邊都有的股票才保留
-    stock_ids_in_holdings = {h["stock_id"] for h in holdings}
-    stocks = [s for s in stocks if s["stock_id"] in stock_ids_in_holdings]
-    prices = [p for p in prices if p["stock_id"] in stock_ids_in_holdings]
+    # 雙向交集：只保留兩邊都有的股票（避免 FK 違反）
+    twse_ids = {s["stock_id"] for s in stocks}
+    tdcc_ids = {h["stock_id"] for h in holdings}
+    keep = twse_ids & tdcc_ids
+    stocks   = [s for s in stocks   if s["stock_id"] in keep]
+    prices   = [p for p in prices   if p["stock_id"] in keep]
+    holdings = [h for h in holdings if h["stock_id"] in keep]
 
     if args.limit:
         stocks = stocks[: args.limit]

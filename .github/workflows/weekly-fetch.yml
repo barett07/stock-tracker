@@ -6,14 +6,6 @@ on:
     - cron: '0 23 * * 5'
   workflow_dispatch:
     inputs:
-      week_end:
-        description: '目標週末 YYYY-MM-DD（留空 = 上一個週五）'
-        required: false
-        default: ''
-      backfill:
-        description: '一次往前抓 N 週（第一次部署填 8，平常留 0）'
-        required: false
-        default: '0'
       dry_run:
         description: 'dry-run (true/false)'
         required: false
@@ -22,7 +14,7 @@ on:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -38,17 +30,10 @@ jobs:
 
       - name: Run fetcher
         env:
-          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           STOCK_INGEST_TOKEN: ${{ secrets.STOCK_INGEST_TOKEN }}
         run: |
           ARGS=""
-          if [ -n "${{ inputs.week_end }}" ]; then
-            ARGS="$ARGS --week-end ${{ inputs.week_end }}"
-          fi
-          if [ -n "${{ inputs.backfill }}" ] && [ "${{ inputs.backfill }}" != "0" ]; then
-            ARGS="$ARGS --backfill ${{ inputs.backfill }}"
-          fi
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
           fi

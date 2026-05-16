@@ -17,7 +17,9 @@
 
 ## 架構
 
-- **資料源**：FinMind（免費版）+ TWSE OpenAPI
+- **資料源（皆免費）**：
+  - 集保戶股權分散表 — [TDCC 開放資料](https://opendata.tdcc.com.tw/getOD.ashx?id=1-5) `id=1-5`
+  - 全市場單日收盤 — [TWSE OpenAPI](https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL) `STOCK_DAY_ALL`
 - **排程**：GitHub Actions 每週六 07:00 (Asia/Taipei)
 - **後端**：Supabase（共用 RailwayShift 專案，表前綴 `st_`）
 - **通知**：Telegram Bot
@@ -25,7 +27,12 @@
 
 ## 線上網址
 
-- 上線後填入：`https://barett07.github.io/stock-tracker/`
+https://barett07.github.io/stock-tracker/
+
+## 上線時程
+
+TDCC 開放資料**只提供本週快照**（沒有歷史檔），所以需要 4 週連續累積後才能跑出第一批警示。
+排程是每週六 07:00 自動執行，第 4 個週六起會收到 Telegram 紅燈推播。
 
 ## 本地開發
 

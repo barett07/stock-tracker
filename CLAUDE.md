@@ -32,7 +32,13 @@
 
 - `SUPABASE_URL`：`https://oqyjixphmdrhcmomskth.supabase.co`
 - `STOCK_INGEST_TOKEN`：同 Supabase 那組
-- `FINMIND_TOKEN`：抓資料用
+
+## 資料源（皆免費，無需 token）
+
+- 集保戶股權分散表：`https://opendata.tdcc.com.tw/getOD.ashx?id=1-5`（每週六公布，只給本週快照）
+- 全市場單日收盤：`https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL`
+
+> 註：FinMind 免費版的 `TaiwanStockHoldingSharesPer` 已改為付費，所以本專案改用上述官方來源。
 
 ## 資料表結構
 

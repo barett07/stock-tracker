@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0c">
+  <title>籌碼追蹤</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ===== 登入畫面 ===== -->
+<section id="login-screen" class="screen">
+  <div class="login-card">
+    <h1>📊 籌碼追蹤</h1>
+    <p class="subtitle">輸入存取碼</p>
+    <form id="login-form">
+      <input type="password" id="passcode-input" class="form-input" placeholder="••••••••" autocomplete="current-password" required>
+      <button type="submit" class="btn-primary">登入</button>
+    </form>
+    <p id="login-error" class="error hidden"></p>
+  </div>
+</section>
+
+<!-- ===== 主畫面 ===== -->
+<section id="main-screen" class="screen hidden">
+  <header class="top-bar">
+    <h1>📊 籌碼追蹤</h1>
+    <div class="top-actions">
+      <select id="week-selector" class="week-selector"></select>
+      <button id="logout-btn" class="icon-btn" title="登出">⎋</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="alerts">本週警示</button>
+    <button class="tab" data-tab="watchlist">觀察清單</button>
+    <button class="tab" data-tab="about">說明</button>
+  </nav>
+
+  <main id="content">
+
+    <!-- 警示清單 -->
+    <div id="tab-alerts" class="tab-panel">
+      <div id="alerts-loading" class="loading">載入中…</div>
+      <div id="alerts-empty" class="empty hidden">
+        <p>本週沒有符合條件的標的 🐢</p>
+        <p class="hint">建議等下週資料更新後再看。</p>
+      </div>
+
+      <section id="red-section" class="alert-section hidden">
+        <h2><span class="dot red"></span> 紅燈 — 4 週連續滿足</h2>
+        <ul id="red-list" class="alert-list"></ul>
+      </section>
+
+      <section id="yellow-section" class="alert-section hidden">
+        <h2><span class="dot yellow"></span> 黃燈 — 趨勢觀察</h2>
+        <ul id="yellow-list" class="alert-list"></ul>
+      </section>
+    </div>
+
+    <!-- 觀察清單 -->
+    <div id="tab-watchlist" class="tab-panel hidden">
+      <div id="watchlist-content" class="loading">載入中…</div>
+    </div>
+
+    <!-- 說明 -->
+    <div id="tab-about" class="tab-panel hidden">
+      <article class="about">
+        <h2>篩選條件</h2>
+        <ul>
+          <li>上市股票（不含 OTC）</li>
+          <li>週收盤價 &lt; 15 元</li>
+          <li>排除全額交割股、變更交易方法</li>
+          <li>股本 &gt; 3 億</li>
+          <li>過去 4 週「800 張以上大戶」持股佔比連續上升</li>
+          <li>過去 4 週「10 張以下散戶」持股佔比連續下降</li>
+        </ul>
+        <h2>等級</h2>
+        <ul>
+          <li><span class="dot red"></span> <b>紅燈</b>：4 週都滿足趨勢（會推 Telegram）</li>
+          <li><span class="dot yellow"></span> <b>黃燈</b>：3 週滿足趨勢</li>
+        </ul>
+        <h2>資料更新</h2>
+        <p>每週六 07:00（台北時間）自動抓集保資料。第一次資料抓回後，需要 4 週才能看到第一批連續趨勢警示。</p>
+        <p class="hint">⚠️ 本工具僅供參考，不構成投資建議。低價股風險高，請自行評估。</p>
+      </article>
+    </div>
+
+  </main>
+</section>
+
+<!-- ===== 詳情 modal ===== -->
+<div id="detail-modal" class="modal hidden">
+  <div class="modal-backdrop"></div>
+  <div class="modal-content">
+    <header class="modal-header">
+      <h2 id="detail-title">—</h2>
+      <button id="detail-close" class="icon-btn">✕</button>
+    </header>
+    <div id="detail-body" class="modal-body">
+      <div class="loading">載入中…</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

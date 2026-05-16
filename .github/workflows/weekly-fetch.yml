@@ -1,0 +1,55 @@
+name: Weekly Fetch
+
+on:
+  schedule:
+    # 每週六 07:00 台北時間 = 週五 23:00 UTC
+    - cron: '0 23 * * 5'
+  workflow_dispatch:
+    inputs:
+      week_end:
+        description: '目標週末 YYYY-MM-DD（留空 = 上一個週五）'
+        required: false
+        default: ''
+      backfill:
+        description: '一次往前抓 N 週（第一次部署填 8，平常留 0）'
+        required: false
+        default: '0'
+      dry_run:
+        description: 'dry-run (true/false)'
+        required: false
+        default: 'false'
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install deps
+        run: pip install -r scripts/requirements.txt
+
+      - name: Run fetcher
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          STOCK_INGEST_TOKEN: ${{ secrets.STOCK_INGEST_TOKEN }}
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.week_end }}" ]; then
+            ARGS="$ARGS --week-end ${{ inputs.week_end }}"
+          fi
+          if [ -n "${{ inputs.backfill }}" ] && [ "${{ inputs.backfill }}" != "0" ]; then
+            ARGS="$ARGS --backfill ${{ inputs.backfill }}"
+          fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          python scripts/fetch_data.py $ARGS

@@ -13,7 +13,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // }
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://barett07.github.io',
   'Access-Control-Allow-Headers': 'Content-Type, X-Ingest-Token',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };

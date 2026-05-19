@@ -10,7 +10,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 //   兩者皆滿足 → 紅燈；其中之一滿足、另一在 4 週中 3 週滿足 → 黃燈
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://barett07.github.io',
   'Access-Control-Allow-Headers': 'Content-Type, X-Ingest-Token',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };

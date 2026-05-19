@@ -150,6 +150,19 @@ TDCC CSV 的「資料日期」是「集保編表日」（通常是該週週五�
 
 本機沒裝過 `supabase login`，且互動式登入難以從 Claude Code 自動化。實際部署都用 Supabase MCP 的 `deploy_edge_function` 工具，把本機 `index.ts` 內容傳上去（含 BOM 與中文字串要注意編碼）。
 
+### Edge Function CORS 設定
+
+所有三個 Edge Function 的 CORS 限定為 `https://barett07.github.io`（不是 `*`）：
+- `stock-auth`：前端呼叫，限定網域
+- `stock-screen`：前端呼叫，限定網域
+- `stock-ingest`：GitHub Actions 呼叫（非瀏覽器，CORS 對其無效），限定網域不影響排程
+
+**新增 Edge Function 時也應沿用此設定，不要用 `*`。**
+
+### XSS 防護
+
+`js/app.js` 底部定義了 `escapeHtml(s)` 函式。**所有從 Supabase 撈回的文字欄位（股票名稱、產業別等）在 innerHTML 中都已套用 `escapeHtml()`。** 新增 innerHTML 渲染時務必沿用。
+
 ### Supabase Secrets 必須在 Dashboard 手動設
 
 目前 Supabase MCP 沒有設 Edge Function secret 的工具。Edge Function 用的 5 個 secret（`STOCK_*` + `TELEGRAM_*`）只能：

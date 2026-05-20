@@ -90,7 +90,7 @@ Deno.serve(async (req: Request) => {
   if (stockErr) return errJson(stockErr.message, 500);
 
   const eligible = (stockRows ?? []).filter(
-    (s) => !s.warning_flag && (s.capital ?? 0) >= CAPITAL_MIN,
+    (s) => !s.warning_flag && (s.capital === null || s.capital >= CAPITAL_MIN),
   );
   const eligibleIds = eligible.map((s) => s.stock_id);
   if (eligibleIds.length === 0) {

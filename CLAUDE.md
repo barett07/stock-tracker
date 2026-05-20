@@ -142,7 +142,13 @@ TDCC CSV 的「資料日期」是「集保編表日」（通常是該週週五�
 
 ### stock-screen 對 capital null 不過濾
 
-原 plan 想用「股本 > 3 億」過濾極小型雜訊，但 TWSE OpenAPI 與 TDCC 都不直接提供股本，所以 `st_stocks.capital` 目前都是 null。`stock-screen` Edge Function 內加了 `capital == null || capital >= CAPITAL_MIN` 邏輯，避免全部被誤過濾。
+原 plan 想用「股本 > 3 億」過濾極小型雜訊，但 TWSE OpenAPI 與 TDCC 都不直接提供股本，所以 `st_stocks.capital` 目前都是 null。
+
+**踩坑**：原本程式碼寫 `(s.capital ?? 0) >= CAPITAL_MIN`，null 被轉成 0，導致所有股票都被擋掉、紅黃燈永遠不會出現。正確寫法：
+
+```typescript
+s.capital === null || s.capital >= CAPITAL_MIN
+```
 
 若 4 週後雜訊太多，可補抓 TWSE「個股月成交資訊」或證交所「上市公司基本資料」拿到股本，再啟用過濾。
 

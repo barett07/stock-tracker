@@ -92,7 +92,7 @@
     S.weeks = rows.map((r) => r.week_end);
     const sel = $('week-selector');
     sel.innerHTML = '';
-    if (uniq.length === 0) {
+    if (S.weeks.length === 0) {
       // 還沒資料：放一個 placeholder
       const opt = document.createElement('option');
       opt.value = '';
@@ -101,13 +101,13 @@
       S.week = null;
       return;
     }
-    for (const w of uniq) {
+    for (const w of S.weeks) {
       const opt = document.createElement('option');
       opt.value = w;
       opt.textContent = w;
       sel.appendChild(opt);
     }
-    S.week = uniq[0];
+    S.week = S.weeks[0];
     sel.value = S.week;
   }
 

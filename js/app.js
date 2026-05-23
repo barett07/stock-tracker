@@ -87,11 +87,9 @@
   // Week selector
   // ============================================================
   async function loadWeeks() {
-    // 從 st_holdings 撈最近 12 週有資料的 week_end（累積期間沒 alerts 仍能切換）
-    const url = `${REST}/st_holdings?select=week_end&order=week_end.desc&limit=5000`;
-    const rows = await fetchJSON(url);
-    const uniq = [...new Set(rows.map((r) => r.week_end))].slice(0, 12);
-    S.weeks = uniq;
+    // RPC 直接回傳 DISTINCT week_end，避免 PostgREST 1000 筆上限截斷導致漏週
+    const rows = await fetchJSON(`${REST}/rpc/get_distinct_weeks`);
+    S.weeks = rows.map((r) => r.week_end);
     const sel = $('week-selector');
     sel.innerHTML = '';
     if (uniq.length === 0) {

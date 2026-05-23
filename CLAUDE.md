@@ -53,13 +53,9 @@ git commit -m "說明"
 git push
 ```
 
-Edge Function 部署（要先裝 supabase CLI）：
+Edge Function 部署：**用 Supabase MCP 的 `deploy_edge_function`**（見踩坑記錄）。
 
-```bash
-supabase functions deploy stock-auth --project-ref oqyjixphmdrhcmomskth
-supabase functions deploy stock-ingest --project-ref oqyjixphmdrhcmomskth
-supabase functions deploy stock-screen --project-ref oqyjixphmdrhcmomskth
-```
+GitHub Actions 版本：workflow 已加 `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true`（2026-06-02 前提前對齊）。
 
 ## 使用者與權限
 
@@ -152,9 +148,15 @@ s.capital === null || s.capital >= CAPITAL_MIN
 
 若 4 週後雜訊太多，可補抓 TWSE「個股月成交資訊」或證交所「上市公司基本資料」拿到股本，再啟用過濾。
 
-### Edge Function 部署用 MCP，不用 supabase CLI
+### Edge Function 部署必須用 MCP，不能只靠 supabase CLI
 
-本機沒裝過 `supabase login`，且互動式登入難以從 Claude Code 自動化。實際部署都用 Supabase MCP 的 `deploy_edge_function` 工具，把本機 `index.ts` 內容傳上去（含 BOM 與中文字串要注意編碼）。
+`supabase functions deploy --project-ref` 可以上傳程式碼，但**不會讓 Edge Function 重新載入 secrets**。實測：用 CLI 重部署後呼叫仍然拿到 401，改用 Supabase MCP 的 `deploy_edge_function` 工具後立刻生效。
+
+**所以標準流程是：**
+1. `supabase secrets set KEY=VALUE --project-ref oqyjixphmdrhcmomskth`（更新 secret 值）
+2. MCP `deploy_edge_function`（重部署，讓 function 吃到新 secret）
+
+`supabase secrets set` 後 `supabase secrets list` 的 digest 確實會變，但 function 需要 MCP 重新部署才能讀到新值。
 
 ### Edge Function CORS 設定
 
@@ -186,6 +188,14 @@ Stan 的 GitHub 免費帳號 private repo **不能用 GitHub Pages**（會回 42
 
 `?demo=1` query string 會跳過 Supabase 直接用 `mockFetch()` 內的假資料。本機沒部署後端時可以預覽完整 UI（含警示、TOP 30、詳情圖表）。詳見 `js/app.js` 的 `DEMO` 常數與 `mockFetch()` 函式。
 
+### PostgREST 預設最多回傳 1000 筆
+
+Supabase PostgREST 的 `max-rows` 預設是 **1000**。URL 帶 `&limit=5000` 也沒用，server 端會截斷。
+
+**踩坑實例**：`loadWeeks()` 原本用 `SELECT week_end FROM st_holdings ORDER BY week_end DESC LIMIT 5000` 期望拿到所有週次再去重複，但每週約有 1080 筆資料，1000 筆截斷後全部都是最新那週，導致前端只顯示「1 / 4 週」、累積進度永遠不增加。
+
+**解法**：需要 aggregate / distinct 的查詢一律用 RPC（database function）在 DB 端處理，不要讓 PostgREST 傳大量資料再前端去重複。本專案已建立 `get_distinct_weeks()` function（`supabase/migrations/002_add_get_distinct_weeks_rpc.sql`），`loadWeeks()` 改呼叫 `/rpc/get_distinct_weeks`。
+
 ### 累積進度 UI
 
-`loadSnapshot()` 用 `S.weeks.length` 判斷累積週數，< 4 時顯示「資料累積中 X / 4 週」藍色提示條。`loadWeeks()` 從 `st_holdings` 撈 distinct `week_end`（不是從 `st_alerts`，因為累積期間還沒 alerts）。
+`loadSnapshot()` 用 `S.weeks.length` 判斷累積週數，< 4 時顯示「資料累積中 X / 4 週」藍色提示條。`loadWeeks()` 呼叫 RPC `get_distinct_weeks` 取得各週 `week_end`（不直接查 `st_holdings` 全表，也不查 `st_alerts`，因為累積期間還沒 alerts）。

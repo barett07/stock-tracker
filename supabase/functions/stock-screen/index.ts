@@ -99,14 +99,33 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // 3. 拉每檔近 4 週 holdings
-  const { data: holdRows, error: holdErr } = await supabase
-    .from('st_holdings')
-    .select('stock_id, week_end, large_ratio, small_ratio')
-    .in('stock_id', eligibleIds)
-    .lte('week_end', week_end)
-    .order('week_end', { ascending: true });
-  if (holdErr) return errJson(holdErr.message, 500);
+  // 3. 拉最近 4 週 holdings。先縮小 week_end，再分批查股票，避免 PostgREST 1000 筆截斷。
+  const { data: weekRows, error: weekErr } = await supabase.rpc('get_distinct_weeks');
+  if (weekErr) return errJson(`get weeks: ${weekErr.message}`, 500);
+
+  const recentWeeks = (weekRows ?? [])
+    .map((r: { week_end: string }) => r.week_end)
+    .filter((w: string) => w <= week_end)
+    .slice(0, WEEKS_WINDOW)
+    .reverse();
+
+  if (recentWeeks.length < WEEKS_WINDOW) {
+    return new Response(JSON.stringify({
+      ok: true,
+      week_end,
+      alerts: 0,
+      note: `only ${recentWeeks.length}/${WEEKS_WINDOW} weeks available`,
+    }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  const { data: holdRows, error: holdErr } = await fetchHoldingsInChunks(
+    supabase,
+    eligibleIds,
+    recentWeeks,
+  );
+  if (holdErr) return errJson(holdErr, 500);
 
   const byStock = new Map<string, { week_end: string; large_ratio: number; small_ratio: number }[]>();
   for (const r of holdRows ?? []) {
@@ -229,4 +248,31 @@ function errJson(message: string, status: number): Response {
     status,
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
   });
+}
+
+async function fetchHoldingsInChunks(
+  supabase: ReturnType<typeof createClient>,
+  stockIds: string[],
+  weeks: string[],
+): Promise<{
+  data: { stock_id: string; week_end: string; large_ratio: number; small_ratio: number }[];
+  error: string | null;
+}> {
+  const rows: { stock_id: string; week_end: string; large_ratio: number; small_ratio: number }[] = [];
+  const chunkSize = 200;
+
+  for (let i = 0; i < stockIds.length; i += chunkSize) {
+    const chunk = stockIds.slice(i, i + chunkSize);
+    const { data, error } = await supabase
+      .from('st_holdings')
+      .select('stock_id, week_end, large_ratio, small_ratio')
+      .in('stock_id', chunk)
+      .in('week_end', weeks)
+      .order('week_end', { ascending: true });
+
+    if (error) return { data: rows, error: `holdings: ${error.message}` };
+    rows.push(...(data ?? []));
+  }
+
+  return { data: rows, error: null };
 }

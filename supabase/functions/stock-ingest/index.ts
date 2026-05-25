@@ -99,6 +99,16 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({ week_end }),
     });
     screenResult = await res.json().catch(() => ({ status: res.status }));
+    if (!res.ok) {
+      return new Response(JSON.stringify({
+        error: 'stock-screen failed',
+        summary,
+        screen: screenResult,
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
   }
 
   return new Response(JSON.stringify({ ok: true, summary, screen: screenResult }), {

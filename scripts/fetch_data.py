@@ -28,6 +28,7 @@ import io
 import json
 import os
 import sys
+import time
 from datetime import date
 from typing import Any
 
@@ -38,6 +39,9 @@ TDCC_SHAREHOLDING = "https://opendata.tdcc.com.tw/getOD.ashx?id=1-5"
 
 UA = {"User-Agent": "Mozilla/5.0 (stock-tracker)"}
 
+TWSE_MAX_RETRIES = 3
+TWSE_RETRY_DELAY = 5  # 秒
+
 
 # ---------------------------------------------------------------------------
 # TWSE — 全市場單日收盤
@@ -47,10 +51,24 @@ def fetch_twse_daily_all() -> tuple[list[dict], list[dict], str | None]:
     """回傳 (stocks, prices, trade_date_iso)。
     stocks: [{stock_id, name, market}, ...]
     prices: [{stock_id, week_end, close, volume}, ...]
+
+    TWSE OpenAPI 偶爾會回傳空內容（非合法 JSON），失敗時重試幾次再放棄。
     """
-    r = requests.get(TWSE_DAILY_ALL, headers=UA, timeout=60)
-    r.raise_for_status()
-    data = r.json()
+    data = None
+    last_err: Exception | None = None
+    for attempt in range(1, TWSE_MAX_RETRIES + 1):
+        try:
+            r = requests.get(TWSE_DAILY_ALL, headers=UA, timeout=60)
+            r.raise_for_status()
+            data = r.json()
+            break
+        except (requests.RequestException, ValueError) as e:
+            last_err = e
+            if attempt < TWSE_MAX_RETRIES:
+                print(f"   ⚠️ TWSE 第 {attempt} 次嘗試失敗（{e}），{TWSE_RETRY_DELAY}s 後重試…", flush=True)
+                time.sleep(TWSE_RETRY_DELAY)
+    else:
+        raise RuntimeError(f"TWSE 重試 {TWSE_MAX_RETRIES} 次後仍失敗：{last_err}")
 
     if not data:
         return [], [], None

@@ -53,9 +53,7 @@ git commit -m "說明"
 git push
 ```
 
-Edge Function 部署：**用 Supabase MCP 的 `deploy_edge_function`**（見踩坑記錄）。
-
-GitHub Actions 版本：workflow 已加 `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true`（2026-06-02 前提前對齊）。
+Edge Function 部署：**用 Supabase MCP 的 `deploy_edge_function`，且必帶 `verify_jwt: false`**（見踩坑記錄）。
 
 ## 使用者與權限
 
@@ -154,9 +152,22 @@ s.capital === null || s.capital >= CAPITAL_MIN
 
 **所以標準流程是：**
 1. `supabase secrets set KEY=VALUE --project-ref oqyjixphmdrhcmomskth`（更新 secret 值）
-2. MCP `deploy_edge_function`（重部署，讓 function 吃到新 secret）
+2. MCP `deploy_edge_function`（重部署，讓 function 吃到新 secret），**必帶 `verify_jwt: false`**（見下一條）
 
 `supabase secrets set` 後 `supabase secrets list` 的 digest 確實會變，但 function 需要 MCP 重新部署才能讀到新值。
+
+### 🚨 verify_jwt 被靜默重置 → 連續 6 週排程失敗（2026-07-09 修復）
+
+`weekly-fetch.yml` 從 2026-05-30 起連續 6 週失敗，兩種交錯症狀：
+
+1. **`stock-ingest` 回 401**：`stock-ingest`／`stock-screen` 靠自己的 `X-Ingest-Token` 認證，不需要 JWT，但 Supabase 上的 `verify_jwt` 不知何時被改回 `true`（預設值）。GitHub Actions 沒帶 Authorization JWT，請求在程式碼執行前就被閘道擋掉。
+2. **TWSE OpenAPI 偶發回傳空內容**：非我方問題，`fetch_data.py` 的 `fetch_twse_daily_all()` 已加重試（最多 3 次、間隔 5 秒）緩解。
+
+**根本原因**：MCP `deploy_edge_function` 的 `verify_jwt` 參數**預設是 `true`**。專案沒有 `supabase/config.toml` 宣告各 function 的設定，只要哪次重部署忘了明確帶 `verify_jwt: false`，就會被靜默改回預設值。跟「CLI 部署不會重載 secrets」同類：**部署動作有副作用，不是純粹的程式碼上傳**。
+
+**規則**：重部署 `stock-ingest`、`stock-screen` 時一定要帶 `verify_jwt: false`，部署後手動觸發一次 workflow 驗證（`gh workflow run "Weekly Fetch"`）。若常忘記，考慮補 `supabase/config.toml` 把設定寫死進 git。
+
+（2026-07-09 修復後手動觸發已成功；第一次真正的 schedule 驗證是 2026-07-11 週六 07:00。）
 
 ### Edge Function CORS 設定
 

@@ -11,3 +11,4 @@ venv/
 *.log
 .vscode/
 .idea/
+supabase/.temp/

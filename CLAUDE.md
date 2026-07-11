@@ -27,12 +27,19 @@
 
 ## ⚠️ 紅線(不知道就會犯錯,細節在 NOTES.md)
 
-1. **Edge Function 部署一律用 MCP `deploy_edge_function` 且必帶 `verify_jwt: false`**——CLI 部署不會重載 secrets;MCP 預設 `verify_jwt: true` 會被靜默重置,曾導致排程連續失敗 6 週。部署後手動觸發 workflow 驗證:`gh workflow run "Weekly Fetch"`
+1. **Edge Function 部署一律用 `./deploy.sh`**(verify_jwt 已寫死在 `supabase/config.toml`,腳本含部署後自動驗證)。verify_jwt 被靜默重置曾導致排程連續失敗 6 週。例外:剛改過 secrets 時 CLI 部署不會重載,驗證失敗就改用 MCP 部署(必帶 `verify_jwt: false`),詳見 NOTES.md
 2. **innerHTML 中所有 Supabase 文字欄位必須套 `escapeHtml()`**(定義在 `js/app.js` 底部)
 3. **新 Edge Function 的 CORS 限定 `https://barett07.github.io`**,不要用 `*`
 4. **PostgREST 最多回 1000 筆**,aggregate/distinct 一律用 RPC 在 DB 端做
 5. TDCC 沒有歷史資料,**不能 backfill**;TWSE 日期是 7 碼民國年
 6. holdings 寫入前必須與 TWSE 股票清單**雙向交集**(FK 約束,否則 500)
+
+## ✅ 改完自檢(交付前逐條確認)
+
+- 改了 innerHTML?→ Supabase 來的文字都套了 `escapeHtml()`
+- 改了 Edge Function?→ 用 `./deploy.sh` 部署且驗證全綠;改了排程相關就 `gh workflow run "Weekly Fetch"` 實測
+- 改了爬蟲?→ 民國年轉換、雙向交集、week_end 規則都沒破壞(NOTES.md)
+- 前端改動用 `?demo=1` 本地預覽過
 
 ## 部署
 

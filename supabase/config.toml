@@ -1,0 +1,13 @@
+# 各 Edge Function 的設定寫死在此,CLI 部署時自動套用,不再依賴人工帶參數
+# 三個 function 都靠自己的 token/passcode 認證,不用 JWT
+# (verify_jwt 曾被 MCP 部署靜默重置成 true,導致排程連續失敗 6 週,見 NOTES.md)
+project_id = "stock-tracker"
+
+[functions.stock-auth]
+verify_jwt = false
+
+[functions.stock-ingest]
+verify_jwt = false
+
+[functions.stock-screen]
+verify_jwt = false

@@ -12,7 +12,7 @@
 | 前端 | 純 HTML/CSS/JS,無 build tool,GitHub Pages 部署 |
 | 資料庫 | 共用 RailwayShift 的 Supabase 專案(`oqyjixphmdrhcmomskth`),table 前綴 `st_` |
 | Edge Functions | `stock-auth`(驗證)、`stock-ingest`(GitHub Actions 寫入)、`stock-screen`(篩選 + Telegram 推播) |
-| 排程 | GitHub Actions `weekly-fetch.yml`,每週六 07:00 Asia/Taipei |
+| 排程 | GitHub Actions `weekly-fetch.yml`,每天 07:00 Asia/Taipei 檢查,DB 已有同週資料就跳過(TDCC 遇颱風假會延後公布) |
 | 資料源 | TDCC 股權分散表 + TWSE STOCK_DAY_ALL(皆免費,FinMind 已捨棄) |
 
 - 資料表結構:`supabase/migrations/001_init.sql`

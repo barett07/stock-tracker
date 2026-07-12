@@ -37,6 +37,10 @@ import requests
 TWSE_DAILY_ALL = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL"
 TDCC_SHAREHOLDING = "https://opendata.tdcc.com.tw/getOD.ashx?id=1-5"
 
+# 查「資料庫已有哪些週」用的公開連線資訊（與 js/config.js 相同，publishable key 本來就公開）
+SUPABASE_PUBLIC_URL = "https://oqyjixphmdrhcmomskth.supabase.co"
+SUPABASE_PUBLISHABLE_KEY = "sb_publishable_qqov-1r2kMV5FXSp23_JCg_M8X8_uc9"
+
 UA = {"User-Agent": "Mozilla/5.0 (stock-tracker)"}
 
 TWSE_MAX_RETRIES = 3
@@ -198,6 +202,30 @@ def fetch_tdcc_shareholding() -> tuple[list[dict], str | None]:
 
 
 # ---------------------------------------------------------------------------
+# 查資料庫最新一週（判斷 TDCC 是否已公布新資料）
+# ---------------------------------------------------------------------------
+
+def fetch_latest_db_week() -> str | None:
+    """呼叫 get_distinct_weeks RPC，回傳資料庫中最新的 week_end（ISO 字串）。
+    查詢失敗回傳 None（呼叫端 fail-open：照常上傳，只印警告）。
+    """
+    url = f"{SUPABASE_PUBLIC_URL}/rest/v1/rpc/get_distinct_weeks"
+    headers = {
+        "apikey": SUPABASE_PUBLISHABLE_KEY,
+        "Authorization": f"Bearer {SUPABASE_PUBLISHABLE_KEY}",
+    }
+    try:
+        r = requests.get(url, headers=headers, timeout=30)
+        r.raise_for_status()
+        rows = r.json()
+        weeks = [row["week_end"] for row in rows if row.get("week_end")]
+        return max(weeks) if weeks else None
+    except (requests.RequestException, ValueError, KeyError, TypeError) as e:
+        print(f"   ⚠️ 查詢資料庫週次失敗（{e}），略過新舊判斷、照常上傳", flush=True)
+        return None
+
+
+# ---------------------------------------------------------------------------
 # 上傳到 Supabase
 # ---------------------------------------------------------------------------
 
@@ -220,6 +248,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="只抓資料、印摘要、不上傳")
     ap.add_argument("--limit", type=int, default=0, help="只處理前 N 檔（測試用）")
+    ap.add_argument("--force", action="store_true", help="即使資料庫已有同週資料仍照常上傳")
     args = ap.parse_args()
 
     print("→ TWSE 全市場單日收盤…", flush=True)
@@ -229,6 +258,15 @@ def main() -> int:
     print("→ TDCC 集保戶股權分散表…", flush=True)
     holdings, hold_date = fetch_tdcc_shareholding()
     print(f"   {len(holdings)} 檔，集保資料日 {hold_date}", flush=True)
+
+    # TDCC 這週的資料已入庫就跳過（排程改每天跑之後，避免重複上傳
+    # 及 stock-screen 重發同一週的 Telegram 紅燈通知）
+    if not args.force and hold_date:
+        latest_db_week = fetch_latest_db_week()
+        if latest_db_week and hold_date <= latest_db_week:
+            print(f"⏭️  TDCC 資料日 {hold_date} 已在資料庫（最新週 {latest_db_week}），"
+                  f"無新資料，跳過上傳。要強制重傳請加 --force", flush=True)
+            return 0
 
     # 對齊 holdings 與 prices 的 week_end（取 TDCC 集保資料日為主）
     week_end = hold_date or trade_date or date.today().isoformat()

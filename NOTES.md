@@ -16,6 +16,17 @@ FinMind 免費版(register 等級)的「集保戶股權分散表」(`TaiwanStock
 
 如果要強行取得歷史,唯一方式是付費 FinMind Sponsor 一次性訂閱 1 個月做歷史 backfill,之後退訂改 TDCC。Stan 目前選擇純免費等 4 週。
 
+## 颱風假會讓 TDCC 延後公布 → 排程改每天檢查(2026-07-12)
+
+**踩坑實例**:2026-07-10(五)颱風巴威台股休市,TDCC 週六(7/11)沒有照常公布新資料,到 7/12 晚上都還是 7/3 那份。原本排程只在週六跑,workflow 顯示「成功」但其實抓到的是舊資料再上傳一次;而 TDCC 沒有歷史檔,若等到下週六才抓,延後公布的那週快照就永遠漏掉。
+
+**解法**:
+- `weekly-fetch.yml` 排程改為**每天** 07:00 台北時間跑(cron `0 23 * * *`)
+- `fetch_data.py` 上傳前先呼叫 `get_distinct_weeks` RPC(用前端同一把 publishable key,本來就公開)查資料庫最新週,TDCC 資料日 ≤ 最新週就**跳過上傳**;查詢失敗則 fail-open 照常上傳(上傳本身冪等)
+- 手動強制重傳:`python scripts/fetch_data.py --force`,或 `gh workflow run "Weekly Fetch" -f force=true`
+
+**為什麼一定要跳過、不能每天照傳**:st_* 各表 upsert 是冪等的沒差,但 `stock-screen` 每跑一次就把同一週的紅燈警示**重發一次 Telegram**(無防重複機制),每天重傳會每天轟炸通知。
+
 ## TDCC 持股分級代碼對應
 
 TDCC CSV 的「持股分級」欄是 1-17 的數字,對應如下(schema 欄位以「張」為單位,TDCC 以「股」為單位,1 張 = 1000 股):

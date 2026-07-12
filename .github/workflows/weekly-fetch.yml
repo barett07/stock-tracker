@@ -2,12 +2,18 @@ name: Weekly Fetch
 
 on:
   schedule:
-    # 每週六 07:00 台北時間 = 週五 23:00 UTC
-    - cron: '0 23 * * 5'
+    # 每天 07:00 台北時間 = 前一天 23:00 UTC
+    # TDCC 通常週六公布當週資料，但遇颱風假等會延後且無歷史檔可補，
+    # 所以每天檢查；fetch_data.py 判斷資料庫已有同週資料就直接跳過上傳
+    - cron: '0 23 * * *'
   workflow_dispatch:
     inputs:
       dry_run:
         description: 'dry-run (true/false)'
+        required: false
+        default: 'false'
+      force:
+        description: '強制上傳，跳過「資料已存在」檢查 (true/false)'
         required: false
         default: 'false'
 
@@ -38,5 +44,8 @@ jobs:
           ARGS=""
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
+          fi
+          if [ "${{ inputs.force }}" = "true" ]; then
+            ARGS="$ARGS --force"
           fi
           python scripts/fetch_data.py $ARGS

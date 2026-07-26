@@ -33,7 +33,7 @@
 4. **PostgREST 最多回 1000 筆**,aggregate/distinct 一律用 RPC 在 DB 端做
 5. TDCC 沒有歷史資料,**不能 backfill**;TWSE 日期是 7 碼民國年
 6. holdings 寫入前必須與 TWSE 股票清單**雙向交集**(FK 約束,否則 500)
-7. **對比度須過 WCAG AA**(按鈕文字、表單標籤、placeholder、focus 框、錯誤訊息都算);**不要用裸 `vh`**:版面高度(`min-height`)用 `dvh`、彈窗/捲動區上限(`max-height`)用 `svh`(iOS Safari 網址列);**不用純黑 `#000` / 純白 `#fff`**,改用 off-black / off-white
+7. **對比度須過 WCAG AA**(按鈕文字、表單標籤、placeholder、focus 框、錯誤訊息都算);**不要用裸 `vh`**:版面高度(`min-height`)用 `dvh`、彈窗/捲動區上限(`max-height`)用 `svh`。**兩種模式下 `vh` 都大於可見高度**:Safari 分頁差約 40px(網址列)、加到主畫面的 standalone 差約 62px(狀態列,更嚴重);**不用純黑 `#000` / 純白 `#fff`**,改用 off-black / off-white
 8. **畫面上的數字一律來自真實資料**;`?demo=1` 的假資料必須明顯標示,不可混充真實籌碼數據。**空狀態、載入中、錯誤狀態都要有畫面**,不能空白
 
 ## ✅ 改完自檢(交付前逐條確認)

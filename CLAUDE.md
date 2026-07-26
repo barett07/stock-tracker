@@ -33,6 +33,8 @@
 4. **PostgREST 最多回 1000 筆**,aggregate/distinct 一律用 RPC 在 DB 端做
 5. TDCC 沒有歷史資料,**不能 backfill**;TWSE 日期是 7 碼民國年
 6. holdings 寫入前必須與 TWSE 股票清單**雙向交集**(FK 約束,否則 500)
+7. **對比度須過 WCAG AA**(按鈕文字、表單標籤、placeholder、focus 框、錯誤訊息都算);**不要用裸 `vh`**:版面高度(`min-height`)用 `dvh`、彈窗/捲動區上限(`max-height`)用 `svh`(iOS Safari 網址列);**不用純黑 `#000` / 純白 `#fff`**,改用 off-black / off-white
+8. **畫面上的數字一律來自真實資料**;`?demo=1` 的假資料必須明顯標示,不可混充真實籌碼數據。**空狀態、載入中、錯誤狀態都要有畫面**,不能空白
 
 ## ✅ 改完自檢(交付前逐條確認)
 
@@ -40,6 +42,7 @@
 - 改了 Edge Function?→ 用 `./deploy.sh` 部署且驗證全綠;改了排程相關就 `gh workflow run "Weekly Fetch"` 實測
 - 改了爬蟲?→ 民國年轉換、雙向交集、week_end 規則都沒破壞(NOTES.md)
 - 前端改動用 `?demo=1` 本地預覽過
+- 改了畫面?→ 對比度過 WCAG AA;沒有裸 `vh`(min-height→`dvh`、max-height→`svh`);沒有純黑純白;空/載入中/錯誤狀態都有畫面;數字都是真的
 
 ## 部署
 
@@ -52,4 +55,5 @@ Edge Function 部署見紅線第 1 條。
 
 ## 協作規則
 
-- 改程式前列計劃確認 → 本地預覽測試 → Stan OK 後才 commit,Stan 明確說「推上去」才 push
+- **寫任何程式碼前**,先與 Stan 討論方向,等 Stan 說「開始生成」才動手,不可推測性實作
+- **發布三步驟,不可跳過**:1. 本地預覽讓 Stan 確認 → 2. Stan OK 後才 `git add` + `git commit` → 3. Stan 明確說「推上去」才 `git push`

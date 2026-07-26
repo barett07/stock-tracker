@@ -200,7 +200,7 @@ button { cursor: pointer; }
   position: relative;
   width: 100%;
   max-width: 720px;
-  max-height: calc(100vh - 32px);
+  max-height: calc(100svh - 32px);
   background: #16161a;
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 20px;
@@ -233,5 +233,5 @@ button { cursor: pointer; }
   .tab { font-size: 14px; padding: 8px; }
   #content { padding: 12px 16px 48px; }
   .alert-item { padding: 12px 14px; }
-  .modal-content { max-height: calc(100vh - 16px); border-radius: 16px; }
+  .modal-content { max-height: calc(100svh - 16px); border-radius: 16px; }
 }
